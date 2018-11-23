@@ -1,6 +1,6 @@
 import sys
 
-class Atomata:
+class Automata:
     def __init__(self, zigma, move_set):
         self.zigma = zigma
         self.move_set = move_set
@@ -41,11 +41,11 @@ class Lexer:
         ('IDEN', zigma['Whitespace'], 'start', 'IDEN'),
         ('IDEN', zigma['dot'], 'ERROR', 'IDEN'),
 
-        ('ERROR', zigma['EOF'], 'EOF', 'ERROR'),
+        ('ERROR', zigma['EOF'], 'EOF', None),
         ('ERROR', zigma['Letter'], 'IDEN', 'ERROR'),
-        ('ERROR', zigma['Digit'], 'IDEN', 'ERROR'),
+        ('ERROR', zigma['Digit'], 'CONST', 'ERROR'),
         ('ERROR', zigma['Operator'], 'LITERAL', 'ERROR'),
-        ('ERROR', zigma['Whitespace'], 'start', 'ERROR'),
+        ('ERROR', zigma['Whitespace'], 'start', None),
         ('ERROR', zigma['dot'], 'ERROR', 'ERROR'),
 
         ('CONST', zigma['EOF'], 'EOF', 'CONST'),
@@ -59,7 +59,7 @@ class Lexer:
         ('CONST_DOT', zigma['Letter'], 'IDEN', 'ERROR'),
         ('CONST_DOT', zigma['Digit'], 'CONST', None),
         ('CONST_DOT', zigma['Operator'], 'LITERAL', 'ERROR'),
-        ('CONST_DOT', zigma['Whitespace'], 'start', 'ERROR'),
+        ('CONST_DOT', zigma['Whitespace'], 'ERROR', 'ERROR'),
         ('CONST_DOT', zigma['dot'], 'start', 'ERROR'),
 
         ('LITERAL', zigma['EOF'], 'EOF', 'LITERAL'),
@@ -67,11 +67,11 @@ class Lexer:
         ('LITERAL', zigma['Digit'], 'CONST', 'LITERAL'),
         ('LITERAL', zigma['Operator'], 'LITERAL', 'LITERAL'),
         ('LITERAL', zigma['Whitespace'], 'start', 'LITERAL'),
-        ('LITERAL', zigma['dot'], 'start', 'LITERAL')
+        ('LITERAL', zigma['dot'], 'ERROR', 'LITERAL')
     ]
 
     def __init__(self, inp):
-        self.fa = Atomata(self.zigma, self.states)
+        self.fa = Automata(self.zigma, self.states)
         self.inp = inp + '\0'
 
     def one_step(self, char):
@@ -88,7 +88,8 @@ class Lexer:
                 res.append(['ERROR', c])
             elif output == 'NOT FOUND' and prev_state != 'start':
                 res.append([prev_state, word])
-                res.append(['ERROR', c])
+                if c not in self.zigma['Whitespace']:
+                    res.append(['ERROR', c])
                 word = ''
             elif output == None:
                 if c not in self.zigma['Whitespace']:
