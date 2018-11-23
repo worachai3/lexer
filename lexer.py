@@ -1,23 +1,19 @@
 import sys
 
 class Atomata:
-    def __init__(self, zigma, move_set, debug=False):
+    def __init__(self, zigma, move_set):
         self.zigma = zigma
         self.move_set = move_set
         self.cur_state = 'start'
-        self.debug = debug
 
     def step(self, char):
         move = [s for s in self.move_set if char in s[1] and self.cur_state == s[0]]
-        if self.debug:
-            if len(move) > 0:
-                print('current state: {} input: {} next state: {} output: {}'.format(move[0][0], char, move[0][2], [move[0][3]]))
         if len(move) > 0:
             self.cur_state = move[0][2]
-            return move[0][3]
+            return self.cur_state, move[0][3]
         else:
             self.cur_state = 'start'
-            return 'ERROR'
+            return self.cur_state, 'NOT FOUND'
 
 class Lexer:
     zigma = {
@@ -40,10 +36,17 @@ class Lexer:
 
         ('IDEN', zigma['EOF'], 'EOF', 'IDEN'),
         ('IDEN', zigma['Letter'], 'IDEN', None),
-        ('IDEN', zigma['Digit'], 'CONST', 'IDEN'),
+        ('IDEN', zigma['Digit'], 'IDEN', None),
         ('IDEN', zigma['Operator'], 'LITERAL', 'IDEN'),
         ('IDEN', zigma['Whitespace'], 'start', 'IDEN'),
-        ('IDEN', zigma['dot'], 'start', 'IDEN'),
+        ('IDEN', zigma['dot'], 'ERROR', 'IDEN'),
+
+        ('ERROR', zigma['EOF'], 'EOF', 'ERROR'),
+        ('ERROR', zigma['Letter'], 'IDEN', 'ERROR'),
+        ('ERROR', zigma['Digit'], 'IDEN', 'ERROR'),
+        ('ERROR', zigma['Operator'], 'LITERAL', 'ERROR'),
+        ('ERROR', zigma['Whitespace'], 'start', 'ERROR'),
+        ('ERROR', zigma['dot'], 'ERROR', 'ERROR'),
 
         ('CONST', zigma['EOF'], 'EOF', 'CONST'),
         ('CONST', zigma['Letter'], 'IDEN', 'CONST'),
@@ -67,9 +70,8 @@ class Lexer:
         ('LITERAL', zigma['dot'], 'start', 'LITERAL')
     ]
 
-    def __init__(self, inp, debug=False):
+    def __init__(self, inp):
         self.fa = Atomata(self.zigma, self.states)
-        self.debug = debug
         self.inp = inp + '\0'
 
     def one_step(self, char):
@@ -78,20 +80,31 @@ class Lexer:
     def split_word(self):
         word = ''
         res = []
-        current_state = 'start'
+        cur_state = 'start'
+        prev_state = 'start'
         for c in self.inp:
-            output = self.one_step(c)
-            if current_state == output:
-                word += c
-            if output != None:
-                word = c
+            cur_state, output = self.fa.step(c)
+            if output == 'NOT FOUND' and prev_state == 'start':
+                res.append(['ERROR', c])
+            elif output == 'NOT FOUND' and prev_state != 'start':
+                res.append([prev_state, word])
+                res.append(['ERROR', c])
+                word = ''
+            elif output == None:
+                if c not in self.zigma['Whitespace']:
+                    word += c
+            else:
                 res.append([output, word])
-
+                if c not in self.zigma['Whitespace']:
+                    word = c
+                else:
+                    word = ''
+            prev_state = cur_state
         return res
 
 if __name__=='__main__':
     inp = ''.join(sys.stdin.readlines())
-    lexer = Lexer(inp, True)
+    lexer = Lexer(inp)
     res = lexer.split_word()
     for r in res:
-        print('{} {}'.format(r[0], r[1]))
+        print('{}\t{}'.format(r[0], r[1]))
